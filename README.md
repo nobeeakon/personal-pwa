@@ -7,3 +7,5 @@ Learn more about the recommended Project Setup and IDE Support in the [Vue Docs 
 
 ## TODO
  - [ ] time events
+ - [ ] books and references
+ - [ ] prevent delete when used

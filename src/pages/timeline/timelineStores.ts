@@ -53,20 +53,29 @@ export const  useTagsStore = () => {
 }
 
 
-type StoredTimelineRecord = {
+
+export type TimelineEventType =  {
+    type: 'event'|'period'
     id: string;
-    year: number
-    month?: number
-    day?: number
     tagIds: string[]
     title: string
     description?: string
+    year: number
+    month?: number
+    day?: number;
+    endYear?:number;
+    endMonth?:number;
+    endDay?:number;
   }
 
-const timelineEventStore = ref({
-    events: localStorageUtil.get<StoredTimelineRecord[]>(LOCAL_STORAGE.timelineEvents)??[],
-})
 
+
+
+
+  // TODO validate input
+const timelineEventStore = ref({
+    events: localStorageUtil.get<TimelineEventType[]>(LOCAL_STORAGE.timelineEvents)??[],
+})
 
 
 export const useTimelineEventsStore = () => {
@@ -91,7 +100,7 @@ export const useTimelineEventsStore = () => {
         timelineEventStore.value.events = timelineEventStore.value.events.filter(eventItem => eventItem.id !== eventId)
     }
 
-    const upsertTimelineEvent = (newTimelineEvent: Omit<StoredTimelineRecord, 'id'> & {id?:string}) => {
+    const upsertTimelineEvent = (newTimelineEvent: Omit<TimelineEventType, 'id'> & {id?:string}) => {
         const targetItemIndex = timelineEventStore.value.events.findIndex(timelineEventItem => timelineEventItem.id === newTimelineEvent.id);
         const eventId = newTimelineEvent.id
         if (eventId && targetItemIndex >=0) {
@@ -106,7 +115,7 @@ export const useTimelineEventsStore = () => {
     watch(() => timelineEventStore.value.events, (newEvents) => {
         const updatedEvents = [...newEvents]
         updatedEvents.sort((a,b) => buildDate({year: a.year, month: a.month, day: a.day}).getTime() - buildDate({year: b.year, month: b.month, day: b.day}).getTime())
-        localStorageUtil.set<StoredTimelineRecord[]>(LOCAL_STORAGE.timelineEvents ,updatedEvents)
+        localStorageUtil.set<TimelineEventType[]>(LOCAL_STORAGE.timelineEvents ,updatedEvents)
     }, {
         deep: true
     })
@@ -116,5 +125,4 @@ export const useTimelineEventsStore = () => {
         deleteTimelineEvent,
         upsertTimelineEvent
     }
-
 }

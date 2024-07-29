@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, computed} from 'vue'
-import {buildDate} from '../../utils/localStorage'
+import {buildDate, normalizeString} from '../../utils/localStorage'
 import {useTimelineEventsStore} from './timelineStores'
 
 import TimelineRecord from './TimelineRecord.vue'
@@ -8,9 +8,13 @@ import TimeItemInput from './TimeItemInput.vue'
 import Tags from './tags/Tags.vue'
 import ExportData from './ExportData.vue'
 
+const showSettings = ref(true);
 const settings = ref({ showLabels: true, showDateDiff: true, showDeleteButton: false, showTagsManager: false, showAddItem: true ,showEditButton: false})
 
-const filters = ref<{tags: Set<string>; dates:{ from?: Date; to?: Date }}>({tags: new Set(), dates:{}})
+const filters = ref<{
+  text: string;
+  tags: Set<string>; 
+  dates:{ from?: Date; to?: Date }}>({text: '',tags: new Set(), dates:{}})
 
 type TimelineRecord = {
   id: string;
@@ -38,6 +42,11 @@ const onDelete = (itemId: string) => {
 const filteredItems = computed(() => (
   timelineStore.timelineEvents.value.filter(timelineItem => {
     let show = true;
+
+    const normalizedFilter = normalizeString(filters.value.text)
+    if(normalizedFilter &&   !normalizeString(timelineItem.title).includes(normalizedFilter) && !normalizeString(timelineItem.description).includes(normalizedFilter)) {
+      show = false
+    }
 
     if (filters.value.tags.size > 0 && timelineItem.tags.every(tagItem => !filters.value.tags.has(tagItem.id) )) {
       show = false
@@ -105,7 +114,10 @@ const onClickTag = (tagId: string) => {
 
 </script>
 <template>
+  <div v-if="showSettings">
+
   <h1>Línea del tiempo</h1>
+  <button @click="showSettings = false">Ocultar</button>
   <div>
     <label> <input v-model="settings.showLabels" type="checkbox" />Show labels </label>
     &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -128,9 +140,19 @@ const onClickTag = (tagId: string) => {
   <div>
     <ExportData />
   </div>
+</div>
+<div v-else>
+  <button @click="showSettings = true">Config</button>
+</div>
 
-  <div v-if="filters.tags.size > 0">
-    <span>Filters: </span> <template v-for="tagItem in filters.tags"> {{ tagItem }},  </template>
+  <div>
+    <span  v-if="filters.tags.size > 0">Tags: </span> <template v-for="tagItem in filters.tags"> {{ tagItem }},  </template>
+    <div>
+      <label>
+        text: <input v-model="filters.text"/> 
+      </label>
+
+    </div>
   </div>
 
   <div>
