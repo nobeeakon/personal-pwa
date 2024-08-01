@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ref, computed} from 'vue'
 import {buildDate, normalizeString} from '../../utils/localStorage'
-import {useTimelineEventsStore} from './timelineStores'
+import {useTimelineEventsStore, type TimelineType} from './timelineStores'
 
 import TimelineRecord from './TimelineRecord.vue'
 import TimeItemInput from './TimeItemInput.vue'
@@ -14,7 +14,13 @@ const settings = ref({ showLabels: true, showDateDiff: true, showDeleteButton: f
 const filters = ref<{
   text: string;
   tags: Set<string>; 
-  dates:{ from?: Date; to?: Date }}>({text: '',tags: new Set(), dates:{}})
+  dates:{ from?: Date; to?: Date };
+  timelineType?:TimelineType 
+}>({text: '',tags: new Set(), dates:{}})
+
+
+  const ITEM_TYPE:  TimelineType[] = ['event', 'period']
+
 
 type TimelineRecord = {
   id: string;
@@ -41,15 +47,18 @@ const onDelete = (itemId: string) => {
 
 const filteredItems = computed(() => (
   timelineStore.timelineEvents.value.filter(timelineItem => {
-    let show = true;
+
+    if (filters.value.timelineType && timelineItem.type !== filters.value.timelineType) {
+      return false;
+    }
 
     const normalizedFilter = normalizeString(filters.value.text)
-    if(normalizedFilter &&   !normalizeString(timelineItem.title).includes(normalizedFilter) && !normalizeString(timelineItem.description).includes(normalizedFilter)) {
-      show = false
+    if(normalizedFilter &&   !normalizeString(timelineItem.title).includes(normalizedFilter) && !normalizeString(timelineItem.description??'').includes(normalizedFilter)) {
+      return false
     }
 
     if (filters.value.tags.size > 0 && timelineItem.tags.every(tagItem => !filters.value.tags.has(tagItem.id) )) {
-      show = false
+      return false
     }
 
 
@@ -60,19 +69,22 @@ const filteredItems = computed(() => (
   })
     
     if (filters.value.dates.from && filters.value.dates.from > itemDate) {
-      show = false
+      return false
     }
 
     if (filters.value.dates.to && filters.value.dates.to < itemDate) {
-      show = false
+      return false
     }
-    return show
+
+
+    return true;
   }).map((timelineItem, index, timelineArray) => {
 
     const nextItem = timelineArray[index + 1]
 
     let dateDiff:undefined|string;
     if (nextItem) {
+      // TODO this is not taking into account that we may have end date
       const currentDate = buildDate({
         day: timelineItem.day,
         month: timelineItem.month,
@@ -116,19 +128,14 @@ const onClickTag = (tagId: string) => {
 <template>
   <div v-if="showSettings">
 
-  <h1>Línea del tiempo</h1>
+  <h3>Línea del tiempo</h3>
   <button @click="showSettings = false">Ocultar</button>
-  <div>
+  <div class="settings">
     <label> <input v-model="settings.showLabels" type="checkbox" />Show labels </label>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
     <label><input v-model="settings.showDateDiff" type="checkbox" />Show date diff </label>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
     <label><input v-model="settings.showTagsManager" type="checkbox" />Show tags manager </label>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
     <label><input v-model="settings.showAddItem" type="checkbox" />Show add Item </label>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
     <label><input v-model="settings.showDeleteButton" type="checkbox" />Show delete </label>
-    &nbsp;&nbsp;|&nbsp;&nbsp;
     <label><input v-model="settings.showEditButton" type="checkbox" />Show edit </label>
   </div>
   <div v-if="settings.showAddItem">
@@ -152,12 +159,17 @@ const onClickTag = (tagId: string) => {
         text: <input v-model="filters.text"/> 
       </label>
 
+      <label>
+        Type <select v-model="filters.timelineType"><option selected :value="undefined">Todos</option><option v-for="typeItem in ITEM_TYPE" :key="typeItem" :value="typeItem">{{ typeItem }}</option></select>
+      </label>
+
     </div>
   </div>
 
   <div>
     <div v-for="(timelineItem) in filteredItems" :key="timelineItem.id">
       <TimelineRecord
+        :type="timelineItem.type"
         :id="timelineItem.id"
         :day="timelineItem.day"
         :month="timelineItem.month"
@@ -176,3 +188,10 @@ const onClickTag = (tagId: string) => {
     </div>
   </div>
 </template>
+<style scoped>
+  .settings{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>

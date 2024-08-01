@@ -17,7 +17,7 @@ const timelineStore = useTimelineEventsStore()
 const timelineEventInfo = ref<TimelineEventType>({
     id: props.timelineItem?.id?? crypto.randomUUID(), type: props.timelineItem?.type??'event',
     title: props.timelineItem?.title??'', description: props.timelineItem?.description??'',
-year: props.timelineItem?.year??2000, month: props.timelineItem?.month??12, day: props.timelineItem?.day??undefined, 
+year: props.timelineItem?.year??2000, month: props.timelineItem?.month, day: props.timelineItem?.day??undefined, 
 endYear: props.timelineItem?.endYear, endMonth: props.timelineItem?.endMonth, endDay: props.timelineItem?.endDay??undefined,
 tagIds: props.timelineItem?.tagIds??[]})
 
@@ -64,7 +64,7 @@ const onSave = () => {
             <label>
                 Tipo de evento
                 <select v-model="timelineEventInfo.type" > 
-                    <option v-for="itemType in ITEM_TYPE" :key="itemType" @select="onTypeChange">{{ itemType }}</option>
+                    <option v-for="itemType in ITEM_TYPE" :key="itemType" >{{ itemType }}</option>
                 </select>
             </label>
         </div>

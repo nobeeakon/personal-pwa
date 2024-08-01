@@ -3,25 +3,16 @@ import { localStorageUtil , normalizeString, buildDate} from "../../utils/localS
 
 type TagType =  {id: string; displayName: string;color: string}
 
+// TODO replace this with indexedDb
 const LOCAL_STORAGE = {
     tags: 'timeline-tags',
     timelineEvents: 'timeline-event-item'
 }
-const tagsTmp:TagType[] = [
-    {   id: 'revolucion',
-    displayName: 'Revolufiass',
-       color: 'yellow'
-     },
-      {
-       id: 'juarez',
-       displayName: 'Juarez',
-       color: 'purple'
-     }
-   ]
+
 
 
 const tagsStore = reactive({
-    tags: localStorageUtil.get<TagType[]>(LOCAL_STORAGE.tags)??tagsTmp, // TODO how to have this as a value not as a reactive thing?
+    tags: localStorageUtil.get<TagType[]>(LOCAL_STORAGE.tags),
     removeTag(tagId: string) {
         const tagToRemoveIndex = this.tags.findIndex(tagItem => tagItem.id === tagId)
         if (tagToRemoveIndex>=0) {
@@ -53,9 +44,9 @@ export const  useTagsStore = () => {
 }
 
 
-
+export type TimelineType = 'event'|'period'
 export type TimelineEventType =  {
-    type: 'event'|'period'
+    type: TimelineType
     id: string;
     tagIds: string[]
     title: string

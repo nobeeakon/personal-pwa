@@ -2,9 +2,11 @@
 import {ref} from 'vue'
 import Tag from './tags/TagUI.vue'
 import TimelineInput from './TimeItemInput.vue'
+import type { TimelineType} from './timelineStores'
 
 type Props = {
   id: string;
+  type: TimelineType
   day?: number
   month?: number
   year: number
@@ -33,6 +35,7 @@ const showEdit = ref(false)
 <template>
   <TimelineInput v-if="showEdit" 
    :timeline-item="{
+    type: props.type,
     id: props.id,
     title: props.title,
     description: props.description,
