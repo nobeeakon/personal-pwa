@@ -12,7 +12,7 @@ const LOCAL_STORAGE = {
 
 
 const tagsStore = reactive({
-    tags: localStorageUtil.get<TagType[]>(LOCAL_STORAGE.tags),
+    tags: localStorageUtil.get<TagType[]>(LOCAL_STORAGE.tags)??[],
     removeTag(tagId: string) {
         const tagToRemoveIndex = this.tags.findIndex(tagItem => tagItem.id === tagId)
         if (tagToRemoveIndex>=0) {
