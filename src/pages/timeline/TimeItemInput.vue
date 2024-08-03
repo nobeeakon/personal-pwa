@@ -48,11 +48,38 @@ const onSave = () => {
     emit('submitTimelineItem')
 }
 
+const onNumericChange = (event:Event, inputType: 'year'|'month'|'day'|'endYear'|'endMonth'|'endDay') => {
+    const inputValue = (event.target as HTMLInputElement).value;
+    const numericValue = inputValue === ''?undefined:parseInt(inputValue);
+    const finalNumericValue = numericValue == null || isNaN(numericValue) || !isFinite(numericValue)?undefined:numericValue;
 
+    switch(inputType) {
+        case 'year':
+            timelineEventInfo.value.year = finalNumericValue??0;
+            break;
+        case 'month':
+            timelineEventInfo.value.month = finalNumericValue;
+            break;
+        case 'day':
+            timelineEventInfo.value.day = finalNumericValue;
+            break;
+        case 'endYear':
+            timelineEventInfo.value.endYear = finalNumericValue;
+            break;
+        case 'endMonth':
+            timelineEventInfo.value.endMonth = finalNumericValue;
+            break;
+        case 'endDay':
+            timelineEventInfo.value.endDay = finalNumericValue;
+            break;
+        default: 
+            return null;
+    }
+}
 
 </script>
 <template>
-    <form @submit.prevent="onSave">
+    <form @submit.prevent="onSave" >
         <div v-if="errorMessage">
             {{ errorMessage }}
         </div>
@@ -71,38 +98,55 @@ const onSave = () => {
         <div>
             <div>Inicio</div>
         <label>
-            year
-            <input type="number" v-model="timelineEventInfo.year" required>
+            Año
+            <input type="number" :value="timelineEventInfo.year" @input="event => onNumericChange(event, 'year')" required>
         </label>
         <label>
-            Month
-            <input type="number" min="1" max="12" v-model="timelineEventInfo.month"  >
+            Mes
+            <input type="number" min="1" max="12" 
+                :value="timelineEventInfo.month" @input="event => onNumericChange(event, 'month')"  
+                :required="!!timelineEventInfo.day"
+            >
         </label>
         <label>
-            Day
-            <input type="number" min="1" max="31" v-model="timelineEventInfo.day">
+            Día
+            <input type="number" min="1" max="31" :value="timelineEventInfo.day" @input="event => onNumericChange(event, 'day')">
         </label>
     </div>
     <div>
         <div>Término</div>
 
         <label>
-            year
-            <input type="number" v-model="timelineEventInfo.endYear" :required="timelineEventInfo.type === 'period'">
+            Año
+            <input type="number" 
+                :value="timelineEventInfo.endYear" @input="event => onNumericChange(event, 'endYear')"
+            :required="timelineEventInfo.type === 'period'">
         </label>
         <label>
-            Month
-            <input type="number" min="1" max="12" v-model="timelineEventInfo.endMonth"  >
+            Mes
+            <input type="number" min="1" max="12" 
+                :value="timelineEventInfo.endMonth" @input="event => onNumericChange(event, 'endMonth')"
+                :required="!!timelineEventInfo.endDay"
+            >
         </label>
         <label>
-            Day
-            <input type="number" min="1" max="31" v-model="timelineEventInfo.endDay">
+            Día
+            <input type="number" min="1" max="31" 
+                :value="timelineEventInfo.endYear" @input="event => onNumericChange(event, 'endYear')"
+            >
         </label>
     </div>
-        <label>
-            Description
-            <textarea v-model="timelineEventInfo.description"/>
-        </label>
+    <div>
+        <div>
+            <label :for="`timeline-description-${timelineEventInfo.id}`">
+                Description
+            </label>
+        </div>
+            <textarea
+             class="descriptionInput"
+                :id="`timeline-description-${timelineEventInfo.id}`"
+            v-model="timelineEventInfo.description" rows="4"/>
+    </div>
         <div>
             <div>
                 <label>Filter <input v-model="labelsFilter"/></label>
@@ -117,3 +161,8 @@ const onSave = () => {
         </div>
     </form>
 </template>
+<style scoped>
+ .descriptionInput {
+    width: 80vw;
+ }
+</style>
