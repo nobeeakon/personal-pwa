@@ -12,6 +12,22 @@
 
     const getRandomValue = (max:number) => Math.ceil( Math.random() * max );
 
+
+    const onNumericInput = (event: Event, type: 'steps'|'maxValue') => {
+        const newValue = (event.target as HTMLInputElement).value
+        const numericValue = parseInt(newValue, 10);
+        switch(type){
+            case 'maxValue': 
+                maxValue.value = numericValue;
+                return;
+            case 'steps': 
+                steps.value = numericValue;
+                return;
+            default: 
+                return;
+        }
+    }
+
     const onNewOperation = () => {
         const newVals = Array(steps.value).fill(null).map(() => getRandomValue(maxValue.value))
         values.value = newVals
@@ -47,8 +63,9 @@
 </script>
 <template>
     <form @submit.prevent="onNewOperation">
-        <label>Steps: <input :value="steps" type="number" @input="e => steps = parseInt(e.target.value,10)"/></label>
-        <label>Max: <input :value="maxValue" @input="e => maxValue = parseInt(e.target.value,10)" type="number"/></label>
+
+        <label>Steps: <input :value="steps" type="number" @input="(e) => onNumericInput(e, 'steps')"/></label>
+        <label>Max: <input :value="maxValue" @input="(e) => onNumericInput(e, 'maxValue')" type="number"/></label>
         <label>Has substractions: <input v-model="hasSustractions" type="checkbox"/></label>
 
         <button type="submit">new</button>
