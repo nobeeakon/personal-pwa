@@ -6,7 +6,8 @@ import {RouterLink, RouterView} from 'vue-router'
   <nav>
     <RouterLink to='/'>home</RouterLink>&nbsp;|&nbsp;
     <RouterLink to='/shop'>shop</RouterLink>&nbsp;|&nbsp;
-    <RouterLink to='/timeline'>timeline</RouterLink>
+    <RouterLink to='/timeline'>timeline</RouterLink>&nbsp;|&nbsp;
+    <RouterLink to='/sums'>sums</RouterLink>&nbsp;|&nbsp;
   </nav>
   <RouterView/>
 </template>
