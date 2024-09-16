@@ -8,6 +8,7 @@ import {RouterLink, RouterView} from 'vue-router'
     <RouterLink to='/shop'>shop</RouterLink>&nbsp;|&nbsp;
     <RouterLink to='/timeline'>timeline</RouterLink>&nbsp;|&nbsp;
     <RouterLink to='/sums'>sums</RouterLink>&nbsp;|&nbsp;
+    <RouterLink to='/exams'>Exams</RouterLink>&nbsp;|&nbsp;
   </nav>
   <RouterView/>
 </template>
