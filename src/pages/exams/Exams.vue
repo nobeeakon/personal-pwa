@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 
 const settings = ref({ answersPerQuestion: 3, exams: 2 });
 
@@ -10,24 +10,48 @@ type AnswerType = {
   optionDisplayName: string;
   isRight: boolean;
 };
-type QuestionType = {
+type MultipleOptionsQuestionType = {
+  type: "multipleOptions";
   id: string;
   questionDisplayName: string;
   answers: AnswerType[];
 };
+type SimpleQuestionType = {
+  type: "simpleQuestion";
+  id: string;
+  questionDisplayName: string;
+  expectedAnswer: string;
+};
 
-const questions = ref<QuestionType[]>([]);
-const exams = ref<Array<QuestionType[]>>([]); 
+type QuestionsType = SimpleQuestionType | MultipleOptionsQuestionType;
 
-const addQuestion = () => {
-  const dummyAnswers = Array(settings.value.answersPerQuestion)
-    .fill({ id: "", optionDisplayName: "", isRight: false })
-    .map((optionItem) => ({ ...optionItem, id: getRandomId() }));
-  questions.value.push({
-    id: getRandomId(),
-    questionDisplayName: "asdasd",
-    answers: dummyAnswers,
-  });
+const questions = ref<QuestionsType[]>([]);
+const exams = ref<Array<QuestionsType[]>>([]);
+
+const addQuestion = (isMultipleOption: boolean) => {
+  if (isMultipleOption) {
+    const dummyAnswers = Array(settings.value.answersPerQuestion)
+      .fill(null)
+      .map(() => ({
+        optionDisplayName: "",
+        isRight: false,
+        id: getRandomId(),
+      }));
+
+    questions.value.push({
+      id: getRandomId(),
+      questionDisplayName: "",
+      answers: dummyAnswers,
+      type: "multipleOptions",
+    });
+  } else {
+    questions.value.push({
+      type: "simpleQuestion",
+      id: getRandomId(),
+      questionDisplayName: "",
+      expectedAnswer: "",
+    });
+  }
 };
 
 const updateQuestion = (newQuestion: string, id: string) => {
@@ -38,7 +62,7 @@ const updateQuestion = (newQuestion: string, id: string) => {
   questions.value[targetIndex].questionDisplayName = newQuestion;
 };
 
-const updateAnswer = (
+const updateMultipleOptionsAnswer = (
   questionId: string,
   answerId: string,
   newValue: { newAnswer?: string; isRight?: boolean }
@@ -46,39 +70,34 @@ const updateAnswer = (
   const targetQuestionIndex = questions.value.findIndex(
     (questionItem) => questionItem.id === questionId
   );
+
+  const targetQuestion = questions.value[targetQuestionIndex];
   const targetAnswerIndex =
-    targetQuestionIndex < 0
+    targetQuestionIndex < 0 || targetQuestion.type !== "multipleOptions"
       ? -1
-      : questions.value[targetQuestionIndex].answers.findIndex(
+      : targetQuestion.answers.findIndex(
           (answerItem) => answerItem.id === answerId
         );
-  if (targetAnswerIndex < 0) return;
+  if (targetAnswerIndex < 0 || targetQuestion.type !== "multipleOptions")
+    return;
 
   if (newValue.newAnswer != null) {
-    questions.value[targetQuestionIndex].answers[
-      targetAnswerIndex
-    ].optionDisplayName = newValue.newAnswer;
+    targetQuestion.answers[targetAnswerIndex].optionDisplayName =
+      newValue.newAnswer;
   }
 
   if (newValue.isRight != null) {
-    questions.value[targetQuestionIndex].answers[targetAnswerIndex].isRight =
-      newValue.isRight;
+    targetQuestion.answers[targetAnswerIndex].isRight = newValue.isRight;
   }
 };
 
-const onChangeNumberOfAnswers = (newNumber: number) => {
-  if (
-    settings.value.answersPerQuestion > newNumber &&
-    questions.value.length > 0
-  ) {
-    alert(
-      "Para reducir la cantidad de respuestas necesitas eliminar todas las preguntas"
-    ); // TODO improve this
-    return;
-  }
+// TODO remove item: question
+// TODO start by asking how many questions and possibly other settings
 
-  settings.value.answersPerQuestion = newNumber;
-};
+const deleteQuestion = (questionId: string) =>  {
+  questions.value = questions.value.filter(questionItem => questionItem.id !== questionId)
+}
+
 
 const randomizeItems = <ItemType>(itemsToRandomize: ItemType[]) => {
   const toRandomize = itemsToRandomize.map((itemToRandomize) => ({
@@ -90,12 +109,18 @@ const randomizeItems = <ItemType>(itemsToRandomize: ItemType[]) => {
     .map((item) => item.value);
 };
 
-const generateRandomExam = (): QuestionType[] => {
+const generateRandomExam = (): QuestionsType[] => {
   const newQuestionsWithRandomizedAnswers = questions.value.map(
-    (questionItem) => ({
-      ...questionItem,
-      answers: randomizeItems(questionItem.answers),
-    })
+    (questionItem) => {
+      if (questionItem.type === "multipleOptions") {
+        return {
+          ...questionItem,
+          answers: randomizeItems(questionItem.answers),
+        };
+      }
+
+      return questionItem;
+    }
   );
 
   return randomizeItems(newQuestionsWithRandomizedAnswers);
@@ -104,73 +129,79 @@ const generateRandomExam = (): QuestionType[] => {
 const generateRandomExams = () => {
   const invalidQuestions = questions.value
     .map((questionItem, index) => {
-      const hasIncompleteAnswer = questionItem.answers.some(
-        (answerItem) => !answerItem.optionDisplayName
-      );
-      const everyAnswerIsInValid = questionItem.answers.every(
-        (answerItem) => !answerItem.isRight
-      );
+      if (questionItem.type === "multipleOptions") {
+        const hasIncompleteAnswer = questionItem.answers.some(
+          (answerItem) => !answerItem.optionDisplayName
+        );
+        const everyAnswerIsInValid = questionItem.answers.every(
+          (answerItem) => !answerItem.isRight
+        );
 
-      if (
-        !questionItem.questionDisplayName ||
-        hasIncompleteAnswer ||
-        everyAnswerIsInValid
-      )
-        return index+1;
+        if (hasIncompleteAnswer || everyAnswerIsInValid) return index;
+      }
+
+      if (!questionItem.questionDisplayName) return index;
 
       return null;
     })
     .filter((itemIndex) => itemIndex != null);
 
   if (invalidQuestions.length) {
-    alert(`Algunas preguntas tienen problemas: ${invalidQuestions.join(", ")}`);
+    alert(
+      `Algunas preguntas tienen problemas: ${invalidQuestions
+        .map((index) => index + 1)
+        .join(", ")}`
+    );
     return;
   }
 
-  const newExams: Array<QuestionType[]> = [];
+  const newExams: Array<QuestionsType[]> = [];
   for (let i = 0; i < settings.value.exams; i++) {
     newExams.push(generateRandomExam());
   }
   exams.value = newExams;
 };
 
-const LETTERS = 'abcdefghijklmnopqrstuv'.split('')
+const LETTERS = "abcdefghijklmnopqrstuv".split("");
 
 //    TODO save to local storage
 
+onMounted(() => {
+  const answersString = prompt("¿Cuántas respuestas por pregunta?", "3");
+  const answersNumber = parseInt(answersString ?? "3", 10);
+  const isInvalidNumber =
+    !answersNumber ||
+    isNaN(answersNumber) ||
+    !isFinite(answersNumber) ||
+    answersNumber > 10;
 
-
+  settings.value.answersPerQuestion = isInvalidNumber ? 3 : answersNumber;
+});
 </script>
 <template>
-  <button @click="addQuestion">Agregar pregunta</button>
-  <div>
-    <label>
-      ¿Cuántas respuestas por pregunta?
-      <input
-        type="number"
-        :value="settings.answersPerQuestion"
-        @input="event => onChangeNumberOfAnswers(parseInt((event.target as HTMLInputElement).value, 10))"
-      />
-    </label>
+  <h2>Agrega tus preguntas</h2>
+  <div class="addQuestionContainer">
+    <button @click="() => addQuestion(true)">+ Opción múltiple</button>
+    <button @click="() => addQuestion(false)">+ Pregunta</button>
   </div>
+
   <div>
     <label>
-      ¿Cuántos exámenes?
+      ¿Cuántas variaciones?
       <input
         type="number"
         :value="settings.exams"
         @input="event => settings.exams = parseInt((event.target as HTMLInputElement).value, 10)"
       />
     </label>
-    <button type="button" @click="generateRandomExams">Generar examenes</button>
-
+    <button type="button" @click="generateRandomExams">Generar</button>
   </div>
 
   <ol>
     <li v-for="questionItem in questions" :key="questionItem.id">
       <div>
         <div>
-          <label :for="questionItem.id"> Pregunta </label>
+          <label :for="questionItem.id"> Pregunta <button @click="() => deleteQuestion(questionItem.id)">X</button> </label>
         </div>
         <textarea
           :id="questionItem.id"
@@ -179,7 +210,7 @@ const LETTERS = 'abcdefghijklmnopqrstuv'.split('')
         />
       </div>
 
-      <div>
+      <div v-if="questionItem.type === 'multipleOptions'">
         <ul>
           <li v-for="answerItem in questionItem.answers" :key="answerItem.id">
             <div>
@@ -188,7 +219,7 @@ const LETTERS = 'abcdefghijklmnopqrstuv'.split('')
             <textarea
               :id="`${answerItem.id}`"
               :value="answerItem.optionDisplayName"
-              @input="(event) => updateAnswer(questionItem.id, answerItem.id, { newAnswer: (event.target as HTMLInputElement).value })"
+              @input="(event) => updateMultipleOptionsAnswer(questionItem.id, answerItem.id, { newAnswer: (event.target as HTMLInputElement).value })"
             />
             <div>
               <label>
@@ -197,13 +228,17 @@ const LETTERS = 'abcdefghijklmnopqrstuv'.split('')
                   :checked="answerItem.isRight"
                   @input="
                     () =>
-                      updateAnswer(questionItem.id, answerItem.id, {
-                        isRight: !answerItem.isRight,
-                      })
+                      updateMultipleOptionsAnswer(
+                        questionItem.id,
+                        answerItem.id,
+                        {
+                          isRight: !answerItem.isRight,
+                        }
+                      )
                   "
-              />
+                />
                 Correcta
-             </label>
+              </label>
             </div>
           </li>
         </ul>
@@ -211,124 +246,154 @@ const LETTERS = 'abcdefghijklmnopqrstuv'.split('')
     </li>
   </ol>
 
-
   <div class="exam" v-for="(examItem, examIndex) in exams" :key="examIndex">
     <h2 class="examTitle">Examen {{ examIndex + 1 }}</h2>
     <h3>Preguntas</h3>
     <div>
-        <ol>
-            <li v-for="questionItem in examItem" :key="questionItem.id">
-                <div>
-                    <strong>
-                        {{ questionItem.questionDisplayName }}
-                    </strong>
-                </div>
-                <ol type="a" >
-                    <li v-for="answerItem in questionItem.answers">
-                        {{  answerItem.optionDisplayName }}
-                    </li>
-                </ol>
+      <ol>
+        <li v-for="questionItem in examItem" :key="questionItem.id">
+          <div>
+            <strong>
+              {{ questionItem.questionDisplayName }}
+            </strong>
+          </div>
+          <ol v-if="questionItem.type === 'multipleOptions'" type="a">
+            <li v-for="answerItem in questionItem.answers">
+              {{ answerItem.optionDisplayName }}
             </li>
-        </ol>
-        <div>
-            <h4>
-                Opciones
-            </h4>
-            <div>
-                <div class="options" :style="{gridTemplateColumns: `repeat(${settings.answersPerQuestion+1}, 1fr)`}">
-                    <div>Q</div>
-                    <div v-for="answerIndex in Array(settings.answersPerQuestion).keys()">{{ LETTERS[answerIndex]  }}</div>
-                <template v-for="(questionItem, questionIndex) in examItem" :key="questionItem.id">
-      
-                
-                    <div>{{ questionIndex +1 }}</div>
-                    <div v-for="_ in questionItem.answers" :key="questionItem.id" class="answerOption"></div>
-                </template>
-            </div>
-       
-            </div>
+          </ol>
+        </li>
+      </ol>
+      <div>
+      <h4>Opcioneeees</h4>
+      <div>
+        <div
+          class="options"
+          :style="{
+            gridTemplateColumns: `repeat(${
+              settings.answersPerQuestion + 1
+            }, 1fr)`,
+          }"
+        >
+          <div>Q</div>
+          <div v-for="answerIndex in Array(settings.answersPerQuestion).keys()">
+            {{ LETTERS[answerIndex] }}
+          </div>
+
+          <template
+            v-for="(questionItem, questionIndex) in examItem"
+            :key="questionItem.id"
+          >
+            <template v-if="questionItem.type === 'multipleOptions'">
+              <div>{{ questionIndex + 1 }}</div>
+              <div
+                v-for="_ in questionItem.answers"
+                :key="questionItem.id"
+                class="answerOption"
+              ></div>
+            </template>
+          </template>
         </div>
+      </div>
+    </div>
     </div>
 
     <h3>Respuestas</h3>
-    <div >
-        <ol>
-            <li v-for="questionItem in examItem" :key="questionItem.id">
-                <div>
-                    <strong>
-                        {{ questionItem.questionDisplayName }}
-                    </strong>
-                </div>
-                <ol type="a" >
-                    <li v-for="answerItem in questionItem.answers">
-                        <span :class=" {correctAnswer: answerItem.isRight}">
-                            {{  answerItem.optionDisplayName }}
-                        </span>
-                    </li>
-                </ol>
-            </li>
-        </ol>
-    </div>
     <div>
-            <h4>
-                Opciones
-            </h4>
-            <div>
-                <div class="options" :style="{gridTemplateColumns: `repeat(${settings.answersPerQuestion+1}, 1fr)`}">
-                    <div>Q</div>
-                    <div v-for="answerIndex in Array(settings.answersPerQuestion).keys()">{{ LETTERS[answerIndex]  }}</div>
-                <template v-for="(questionItem, questionIndex) in examItem" :key="questionItem.id">
-      
-                
-                    <div>{{ questionIndex +1 }}</div>
-                    <div v-for="answerItem in questionItem.answers" :key="questionItem.id" :class="{answerOption: true, isRight: answerItem.isRight}"></div>
-                </template>
-            </div>
-       
-            </div>
+      <ol>
+        <li v-for="questionItem in examItem" :key="questionItem.id">
+          <div>
+            <strong>
+              {{ questionItem.questionDisplayName }}
+            </strong>
+          </div>
+          <ol v-if="questionItem.type === 'multipleOptions'" type="a">
+            <li v-for="answerItem in questionItem.answers">
+              <span :class="{ correctAnswer: answerItem.isRight }">
+                <span v-if="answerItem.isRight">****** </span
+                >{{ answerItem.optionDisplayName }}
+                <span v-if="answerItem.isRight">****** </span>
+              </span>
+            </li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <div>
+      <h4>Opciones</h4>
+      <div>
+        <div
+          class="options"
+          :style="{
+            gridTemplateColumns: `repeat(${
+              settings.answersPerQuestion + 1
+            }, 1fr)`,
+          }"
+        >
+          <div>Q</div>
+          <div v-for="answerIndex in Array(settings.answersPerQuestion).keys()">
+            {{ LETTERS[answerIndex] }}
+          </div>
+
+          <template
+            v-for="(questionItem, questionIndex) in examItem"
+            :key="questionItem.id"
+          >
+            <template v-if="questionItem.type === 'multipleOptions'">
+              <div>{{ questionIndex + 1 }}</div>
+              <div
+                v-for="answerItem in questionItem.answers"
+                :key="questionItem.id"
+                :class="{ answerOption: true, isRight: answerItem.isRight }"
+              ></div>
+            </template>
+          </template>
         </div>
-  </div>
-  
-  <div>
-
+      </div>
+    </div>
   </div>
 
-
+  <div></div>
 </template>
 
-<style scoped >
-h2, h3 {
-    color: blue;
+<style scoped>
+h2,
+h3 {
+  color: blue;
 }
 
-.examTitle{
-    text-align: center;
+.addQuestionContainer {
+  display: flex;
+  gap: 8px;
+}
+
+.examTitle {
+  text-align: center;
 }
 .exam {
-    border: 1px solid grey;
-    margin: 32px 16px;
+  border: 1px solid grey;
+  margin: 32px 16px;
 }
 .correctAnswer {
-    font-weight: bolder;
-    text-decoration: underline;
-    font-style: italic;
+  font-weight: bolder;
+  text-decoration: underline;
+  font-style: italic;
 }
 
 .options {
-    width: 150px;
-    display: grid;
-    align-items: center;
+  width: 150px;
+  display: grid;
+  align-items: center;
 }
 
-.answerOption { 
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 1px solid black;
+.answerOption {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid black;
 }
 .answerOption.isRight {
-    background-color: black;
+  background-color: black;
 }
-
-
 </style>
