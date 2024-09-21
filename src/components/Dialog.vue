@@ -29,7 +29,9 @@ const handleClose = () => {
 </template>
 <style scoped>
 .dialog {
-  border: 1px rgb(190, 190, 190) solid;
+
+  box-shadow: rgba(0, 0, 0, 0.16) 0px 2px 5px;
+    border: none;
   border-radius: 16px;
 }
 

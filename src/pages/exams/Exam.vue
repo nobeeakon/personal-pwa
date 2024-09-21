@@ -155,10 +155,9 @@ const generateRandomExams = () => {
   answersRef.value?.scrollIntoView({ behavior: "smooth" });
 };
 
-//    TODO save to local storage
 </script>
 <template>
-    <div>
+  <div>
     <button class="goBackButton" @click="$emit('showSettings')">
       <div class="leftArrow">
         <LeftArrowIcon />
@@ -179,17 +178,25 @@ const generateRandomExams = () => {
         <button @click="() => addQuestion(false)">+ Pregunta</button>
       </div>
 
-      <div v-if="currentExam.questions.length>0">
-        <h3> Generar variaciones</h3>
-        <label>
-          ¿Cuántas variaciones?
-          <input
-            type="number"
-            :value="settings.exams"
-            @input="event => settings.exams = parseInt((event.target as HTMLInputElement).value, 10)"
-          />
-        </label>
-        <button type="button" @click="generateRandomExams">Generar</button>
+      <div v-if="currentExam.questions.length > 0">
+        <h3>Generar variaciones</h3>
+        <div>
+          <label>
+            ¿Cuántas variaciones?
+            <input
+              type="number"
+              :value="settings.exams"
+              @input="event => settings.exams = parseInt((event.target as HTMLInputElement).value, 10)"
+            />
+          </label>
+          <button type="button" @click="generateRandomExams">Generar</button>
+        </div>
+        <p>
+          <em
+            >Aleatoriza las preguntas y respuestas y genera la hoja de
+            respuestas</em
+          >
+        </p>
       </div>
     </div>
 
@@ -275,9 +282,6 @@ textarea {
 li {
   margin-top: 8px;
 }
-
-
-
 
 .goBackButton {
   display: flex;
