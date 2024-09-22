@@ -21,6 +21,11 @@ export type AnswerType = {
   
   export  type QuestionsType = SimpleQuestionType | MultipleOptionsQuestionType;
   
+  export type RandomizedQuestions = {
+    id: string;
+    questions: QuestionsType[]
+  }
+
   export type ExamType = {
     id: string;
     name: string;
@@ -28,4 +33,5 @@ export type AnswerType = {
     /** created at date, in YYYY-MM-DD format */
     createdAtYMD: string; 
     questions: QuestionsType[]
+    randomizedQuestions: Array<RandomizedQuestions>
   }

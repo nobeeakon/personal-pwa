@@ -34,6 +34,7 @@ const onCreateNewExam = () => {
     answersNumber: examInfo.value.answersNumber,
     questions: [],
     createdAtYMD: (new Date().toISOString()).split('T')[0], // this is an example of an ISOString '2024-09-21T22:18:16.827Z'
+    randomizedQuestions: []
   }
 
   ExamsLocalStorageData.upsert(newExam)

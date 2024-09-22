@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, watch, onMounted } from "vue";
-import type { QuestionsType, ExamType } from "./types";
+import type { ExamType, RandomizedQuestions } from "./types";
 import ExamsLocalStorageData from "./localStorageExams";
 import generateRandomExam from "./generateRandomExam";
 import Dialog from "../../components/Dialog.vue";
@@ -14,12 +14,12 @@ const emit = defineEmits<{
   showSettings: [value?: never];
 }>();
 
+
 const settings = ref({ answersPerQuestion: 3, exams: 2 });
 const answersRef = ref<HTMLDivElement>();
+const showConfirmGenerateRandomExamsDialog = ref(false);
 
 const currentExam = ref<ExamType | null>(null);
-const randomExams = ref<Array<QuestionsType[]>>([]);
-
 const dialogMessage = ref<null | string>(null);
 
 onMounted(() => {
@@ -147,14 +147,25 @@ const generateRandomExams = () => {
     return;
   }
 
-  const newExams: Array<QuestionsType[]> = [];
+  const newExams: Array<RandomizedQuestions> = [];
   for (let i = 0; i < settings.value.exams; i++) {
-    newExams.push(generateRandomExam(currentExam.value?.questions));
+    newExams.push({questions: generateRandomExam(currentExam.value?.questions), id: getRandomId()});
   }
-  randomExams.value = newExams;
+
+  currentExam.value.randomizedQuestions =  newExams;
+
   answersRef.value?.scrollIntoView({ behavior: "smooth" });
 };
 
+const validateGenerateRandomExams = () => {
+  if (currentExam.value?.randomizedQuestions?.length ?? 0 > 0) {
+    showConfirmGenerateRandomExamsDialog.value = true;
+
+    return;
+  }
+
+  generateRandomExams();
+};
 </script>
 <template>
   <div>
@@ -170,105 +181,136 @@ const generateRandomExams = () => {
     <div>No encontramos lo que buscabas</div>
   </template>
   <template v-else>
-    <h1>{{ currentExam.name }}</h1>
-    <div class="controllers">
-      <h2>Agrega tus preguntas</h2>
-      <div class="addQuestionContainer">
-        <button @click="() => addQuestion(true)">+ Opción múltiple</button>
-        <button @click="() => addQuestion(false)">+ Pregunta</button>
+    <div class="questionsContainer">
+      <h1>{{ currentExam.name }}</h1>
+      <div class="controllers">
+        <h2>Agrega tus preguntas</h2>
+        <div class="addQuestionContainer">
+          <button @click="() => addQuestion(true)">+ Opción múltiple</button>
+          <button @click="() => addQuestion(false)">+ Pregunta abierta</button>
+        </div>
+
+        <div v-if="currentExam.questions.length > 0">
+          <h3>Generar variaciones</h3>
+          <div>
+            <label>
+              ¿Cuántas variaciones?
+              <input
+                type="number"
+                :value="settings.exams"
+                @input="event => settings.exams = parseInt((event.target as HTMLInputElement).value, 10)"
+              />
+            </label>
+            <button type="button" @click="validateGenerateRandomExams">
+              Generar
+            </button>
+          </div>
+          <p>
+            <em
+              >Aleatoriza las preguntas y respuestas y genera la hoja de
+              respuestas</em
+            >
+          </p>
+        </div>
       </div>
 
       <div v-if="currentExam.questions.length > 0">
-        <h3>Generar variaciones</h3>
-        <div>
-          <label>
-            ¿Cuántas variaciones?
-            <input
-              type="number"
-              :value="settings.exams"
-              @input="event => settings.exams = parseInt((event.target as HTMLInputElement).value, 10)"
-            />
-          </label>
-          <button type="button" @click="generateRandomExams">Generar</button>
-        </div>
-        <p>
-          <em
-            >Aleatoriza las preguntas y respuestas y genera la hoja de
-            respuestas</em
+        <h2>Preguntas</h2>
+        <ol class="questionsContainer">
+          <li
+            v-for="questionItem in currentExam.questions"
+            :key="questionItem.id"
           >
-        </p>
+            <div>
+              <div>
+                <label :for="questionItem.id">
+                  Pregunta
+                  <button @click="() => deleteQuestion(questionItem.id)">
+                    X
+                  </button>
+                </label>
+              </div>
+              <textarea
+                :id="questionItem.id"
+                :value="questionItem.questionDisplayName"
+                @input="(event) => updateQuestion((event.target as HTMLTextAreaElement).value, questionItem.id)"
+              />
+            </div>
+
+            <div v-if="questionItem.type === 'multipleOptions'">
+              <ul>
+                <li
+                  v-for="answerItem in questionItem.answers"
+                  :key="answerItem.id"
+                >
+                  <div>
+                    <label :for="`${answerItem.id}`"> </label>
+                  </div>
+                  <textarea
+                    :id="`${answerItem.id}`"
+                    :value="answerItem.optionDisplayName"
+                    @input="(event) => updateMultipleOptionsAnswer(questionItem.id, answerItem.id, { newAnswer: (event.target as HTMLInputElement).value })"
+                  />
+                  <div>
+                    <label>
+                      <input
+                        type="checkbox"
+                        :checked="answerItem.isRight"
+                        @input="
+                          () =>
+                            updateMultipleOptionsAnswer(
+                              questionItem.id,
+                              answerItem.id,
+                              {
+                                isRight: !answerItem.isRight,
+                              }
+                            )
+                        "
+                      />
+                      Correcta
+                    </label>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ol>
       </div>
     </div>
 
-    <ol class="questionsContainer">
-      <li v-for="questionItem in currentExam.questions" :key="questionItem.id">
-        <div>
-          <div>
-            <label :for="questionItem.id">
-              Pregunta
-              <button @click="() => deleteQuestion(questionItem.id)">X</button>
-            </label>
-          </div>
-          <textarea
-            :id="questionItem.id"
-            :value="questionItem.questionDisplayName"
-            @input="(event) => updateQuestion((event.target as HTMLTextAreaElement).value, questionItem.id)"
-          />
-        </div>
+    <div ref="answersRef" class="randomExams" v-if="currentExam.randomizedQuestions.length> 0">
+      <h2 class="randomExamsTitle">Examenes aleatorizados</h2>
 
-        <div v-if="questionItem.type === 'multipleOptions'">
-          <ul>
-            <li v-for="answerItem in questionItem.answers" :key="answerItem.id">
-              <div>
-                <label :for="`${answerItem.id}`"> </label>
-              </div>
-              <textarea
-                :id="`${answerItem.id}`"
-                :value="answerItem.optionDisplayName"
-                @input="(event) => updateMultipleOptionsAnswer(questionItem.id, answerItem.id, { newAnswer: (event.target as HTMLInputElement).value })"
-              />
-              <div>
-                <label>
-                  <input
-                    type="checkbox"
-                    :checked="answerItem.isRight"
-                    @input="
-                      () =>
-                        updateMultipleOptionsAnswer(
-                          questionItem.id,
-                          answerItem.id,
-                          {
-                            isRight: !answerItem.isRight,
-                          }
-                        )
-                    "
-                  />
-                  Correcta
-                </label>
-              </div>
-            </li>
-          </ul>
-        </div>
-      </li>
-    </ol>
-
-    <div ref="answersRef" class="randomExams">
-      <div
-        class="exam"
-        v-for="(examItem, examIndex) in randomExams"
-        :key="examIndex"
-      >
-        <h2 class="examTitle">Examen {{ examIndex + 1 }}</h2>
-
-        <RandomExam
-          :questions="examItem"
-          :answers-per-question="currentExam.answersNumber"
-        />
-      </div>
+      <RandomExam
+        v-for="(examItem, examIndex) in currentExam.randomizedQuestions"
+        :key="examItem.id"
+        :title="`Examen  ${examIndex + 1} `"
+        :questions="examItem.questions"
+        :answers-per-question="currentExam.answersNumber"
+      />
     </div>
 
     <Dialog :is-open="!!dialogMessage" @close="dialogMessage = null">
       <div>{{ dialogMessage }}</div>
+    </Dialog>
+    <Dialog
+      :is-open="showConfirmGenerateRandomExamsDialog"
+      @close="showConfirmGenerateRandomExamsDialog = false"
+    >
+      <p>Al generar nuevas variantes se perderán las anteriores.</p>
+      <p>¿Seguro que deseas continuar?</p>
+      <div>
+        <button
+          @click="
+            () => {
+              showConfirmGenerateRandomExamsDialog = false;
+              generateRandomExams();
+            }
+          "
+        >
+          Generar
+        </button>
+      </div>
     </Dialog>
   </template>
 </template>
@@ -294,6 +336,10 @@ li {
   height: 16px;
 }
 
+.questionsContainer {
+  position: relative;
+}
+
 .controllers {
   position: sticky;
   top: 0;
@@ -301,6 +347,7 @@ li {
   box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
   padding: 0 16px 16px 16px;
   border-radius: 8px;
+  z-index: 1;
 }
 
 .addQuestionContainer {
@@ -313,17 +360,16 @@ li {
   margin-left: 32px;
 }
 
+.randomExamsTitle {
+  text-align: center;
+}
+
 .randomExams {
   scroll-padding-top: 300px;
-}
-
-.exam {
-  border: 1px solid grey;
-  margin: 32px 16px;
-  padding: 16px;
-}
-
-.examTitle {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  row-gap: 24px;
+  margin-top: 24px;
+  border-top: 3px solid lightgrey;
 }
 </style>
